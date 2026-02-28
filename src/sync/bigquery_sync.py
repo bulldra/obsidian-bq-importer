@@ -93,17 +93,21 @@ def ensure_tables_exist(
 
     # sync_state: ネイティブテーブル（コミットハッシュ管理）
     sync_state_ref = f"{dataset_ref}.{SYNC_STATE_TABLE}"
-    sync_state_schema = [
-        bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("commit_hash", "STRING"),
-        bigquery.SchemaField("synced_at", "TIMESTAMP"),
-        bigquery.SchemaField("files_added", "INT64"),
-        bigquery.SchemaField("files_modified", "INT64"),
-        bigquery.SchemaField("files_deleted", "INT64"),
-    ]
-    sync_state_table = bigquery.Table(sync_state_ref, schema=sync_state_schema)
-    client.create_table(sync_state_table, exists_ok=True)
-    logger.info("Ensured table exists: %s", sync_state_ref)
+    try:
+        client.get_table(sync_state_ref)
+        logger.info("Table already exists: %s", sync_state_ref)
+    except Exception:
+        sync_state_schema = [
+            bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("commit_hash", "STRING"),
+            bigquery.SchemaField("synced_at", "TIMESTAMP"),
+            bigquery.SchemaField("files_added", "INT64"),
+            bigquery.SchemaField("files_modified", "INT64"),
+            bigquery.SchemaField("files_deleted", "INT64"),
+        ]
+        sync_state_table = bigquery.Table(sync_state_ref, schema=sync_state_schema)
+        client.create_table(sync_state_table)
+        logger.info("Created table: %s", sync_state_ref)
 
     # documents: GCS外部テーブル
     _ensure_external_table(client, dataset_ref, gcs_bucket, gcs_blob_prefix)
